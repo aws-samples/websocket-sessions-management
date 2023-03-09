@@ -1,0 +1,62 @@
+.WebsocketConnector-CardGroup {
+  justify-content: center;
+}
+
+.WebsocketConnector-Card {
+  max-width: 600px;
+  position: fixed;
+  top: 50px;
+}
+
+.WebsocketConnector-Disconnect-Button {
+  margin-left: 5px;
+}
+
+.Text-CardGroup {
+  justify-content: center;
+}
+
+.Text-Card {
+  justify-content: left;
+  min-width: 600px;
+  max-width: 600px;
+  min-height: 200px;
+  top: 50px;
+}
+
+.Buttons-CardGroup {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.Teleread-Button-Card {
+  max-width: 600px;
+  top: 50px;
+}
+
+.Clear-Button-Card {
+  max-width: 70px;
+
+}
+
+.WebsocketConnector-Form {
+  margin: 15px;
+}
+
+.WebsocketConnector-FormLabel {
+  font-size: 25px;
+}
+
+.WebsocketConnector-FormText {
+  font-size: 0.75rem;
+  text-align: left;
+}
+
+.WebsocketConnector-P1 {
+  margin: 0px;
+}
+
+.WebsocketConnector-P2 {
+  font-style: oblique;
+  margin: 0px;
+}

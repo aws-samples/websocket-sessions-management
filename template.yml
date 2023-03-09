@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ws-sessions-app
+
+  SAM Template for ws-sessions-app to demonstrate how to keep context for anonymous users
+  when they are reconnecting to a WebSocket API. The app shows how to generate a session ID,
+  store session context on disconnect, and link different connection IDs from WebSocket
+  to a particular user.
+  
+Globals:
+  Function:
+    Runtime: python3.9
+    MemorySize: 128
+    Timeout: 15
+
+Parameters:
+  ApiStageName:
+    Type: String
+    Default: Prod
+    Description: REQUIRED The name of Websocket API deployment stage
+    MinLength: 3
+    MaxLength: 10
+    AllowedPattern: ^[A-Za-z]+$
+    ConstraintDescription: Capital or small letters only.
+
+Resources:
+##### Websocket API #####
+  Websocket:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: SessionManagementWebsocketApi
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: "$request.body.action"
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref Websocket
+      RouteKey: $connect
+      AuthorizationType: NONE
+      OperationName: ConnectRoute
+      Target: !Join [ '/', ['integrations', !Ref ConnectInteg] ]
+  ConnectInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref Websocket
+      Description: Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnConnectFunction.Arn}/invocations
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref Websocket
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      OperationName: DisconnectRoute
+      Target: !Join [ '/', ['integrations', !Ref DisconnectInteg]]
+  DisconnectInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref Websocket
+      Description: Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${OnDisconnectFunction.Arn}/invocations
+  TeleprinterRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref Websocket
+      RouteKey: teleprinter
+      AuthorizationType: NONE
+      OperationName: TeleprinterRoute
+      Target: !Join [ '/', ['integrations', !Ref TeleprinterInteg]]
+  TeleprinterInteg:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref Websocket
+      Description: Teleprinter Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeleprinterFunction.Arn}/invocations
+  Deployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+    - ConnectRoute
+    - DisconnectRoute
+    - TeleprinterRoute
+    Properties:
+      ApiId: !Ref Websocket
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: !Ref ApiStageName
+      Description: Prod Stage
+      DeploymentId: !Ref Deployment
+      ApiId: !Ref Websocket
+
+##### DynamoDB table for managing Websocket connections #####
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: "userId"
+        AttributeType: "S"
+      - AttributeName: "connectionId"
+        AttributeType: "S"
+      - AttributeName: "active"
+        AttributeType: "S"
+      - AttributeName: "lastSeen"
+        AttributeType: "N"
+      KeySchema:
+      - AttributeName: "userId"
+        KeyType: "HASH"
+      GlobalSecondaryIndexes:
+      - IndexName: connectionId-index
+        Projection:
+          ProjectionType: ALL
+        ProvisionedThroughput:
+          WriteCapacityUnits: 5
+          ReadCapacityUnits: 5
+        KeySchema:
+        - KeyType: HASH
+          AttributeName: connectionId
+      - IndexName: lastSeen-index
+        Projection:
+          ProjectionType: KEYS_ONLY
+        ProvisionedThroughput:
+          WriteCapacityUnits: 5
+          ReadCapacityUnits: 5
+        KeySchema:
+        - KeyType: HASH
+          AttributeName: active
+        - KeyType: RANGE
+          AttributeName: lastSeen
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: True
+
+  SessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: "userId"
+        AttributeType: "S"
+      KeySchema:
+      - AttributeName: "userId"
+        KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        SSEEnabled: True
+
+##### EventBridge Scheduler #####
+  OnDeleteSchedulerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: python3.9
+      CodeUri: handlers/onDelete/
+      MemorySize: 128
+      Environment:
+        Variables:
+          CONNECTIONS_TABLE_NAME: !Ref ConnectionsTable
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref ConnectionsTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref SessionsTable
+      Events:
+        Schedule:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: rate(5 minute)
+
+##### Lambda functions #####
+  OnConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/onConnect/
+      Handler: app.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ConnectionsTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref ConnectionsTable
+  OnConnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - Websocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OnConnectFunction
+      Principal: apigateway.amazonaws.com
+  OnDisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/onDisconnect/
+      Handler: app.handler
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref ConnectionsTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref ConnectionsTable
+  OnDisconnectPermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - Websocket
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OnDisconnectFunction
+      Principal: apigateway.amazonaws.com
+  
+  TeleprinterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handlers/teleprinter
+      Handler: app.handler
+      Timeout: 600
+      Environment:
+        Variables:
+          API_URL: !Join [ '', [ 'https://', !Ref Websocket, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'ApiStageName'] ]
+          CONNECTIONS_TABLE_NAME: !Ref ConnectionsTable
+          SESSIONS_TABLE_NAME: !Ref SessionsTable
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref ConnectionsTable
+      - DynamoDBCrudPolicy:
+          TableName: !Ref SessionsTable
+      - Statement:
+        - Effect: Allow
+          Action:
+          - 'execute-api:ManageConnections'
+          Resource:
+          - !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
+  TeleprinterPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref TeleprinterFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
+    
+Outputs:
+  WebSocketURL:
+    Description: "The WSS Protocol URL to connect to. Copy and paste to the field on the frontend."
+    Value: !Join [ '', [ 'wss://', !Ref Websocket, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'ApiStageName'] ]

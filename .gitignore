@@ -1,0 +1,29 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/ws-sessions-frontend/node_modules
+/ws-sessions-frontend/.pnp
+.pnp.js
+
+# testing
+/ws-sessions-frontend/coverage
+
+# production
+/ws-sessions-frontend/build
+
+# amplify
+/ws-sessions-frontend/amplify
+/ws-sessions-frontend/src/aws-exports.js
+
+# misc
+.aws-sam
+samconfig.toml
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.localå
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
