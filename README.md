@@ -52,7 +52,7 @@ The project contains Backend and Frontend. You can deploy Backend only. The depl
 
 #### Option 1: Use hosted Frontend
 
-AWS provides you with hosted React-based Frontend. Simply open [this link-INSERT_THE_LINK]().
+AWS provides you with hosted React-based Frontend. Simply open [this link](https://main.d2ygdotzvem6pv.amplifyapp.com/).
 
 #### Option 2: Deploy frontend Frontend locally
 
