@@ -1,5 +1,7 @@
 # WebSocket API session management
 
+*This repository is a part of the [blog post](https://aws.amazon.com/blogs/compute/managing-sessions-of-anonymous-users-in-websocket-api-based-applications/). Check it out for more information.*
+
 This project creates a sample app for demonstrating how to keep anonymous user context when using WebSocket APIs.
 
 The goal is to demonstrate how to handle reconnects without losing user context.
