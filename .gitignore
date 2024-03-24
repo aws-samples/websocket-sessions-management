@@ -16,6 +16,7 @@
 /ws-sessions-frontend/src/aws-exports.js
 
 # misc
+.next
 .aws-sam
 samconfig.toml
 .DS_Store
