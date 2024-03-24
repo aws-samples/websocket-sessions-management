@@ -1,7 +1,5 @@
 import React from "react";
 import Button from "react-bootstrap/Button";
-import Card from "react-bootstrap/Card";
-import CardGroup from "react-bootstrap/CardGroup";
 
 function TelereadButton(props) {
   const { isConnected, isReading, onReadClick } = props;
