@@ -21,7 +21,7 @@ function WebsocketConnector(props) {
             <Form.Text className="text-xs">
               <p className="m-0">Enter your Websocket URL:</p>
               <p className="ml-2 italic">
-                wss://API_ID.execute-api.AWS_Region.amazonaws.com/STAGE_NAME'.
+                wss://API_ID.execute-api.AWS_Region.amazonaws.com/STAGE_NAME.
               </p>
               <p>
                 Find this information in SAM deployment output under key
