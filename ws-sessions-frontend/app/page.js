@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import CurrentUserHeader from "./Components/CurrentUserHeader";
-import TelereadButton from "./Components/TelereadButton";
 import Telereader from "./Components/Telereader";
 import WebsocketConnector from "./Components/WebsocketConnector";
 
@@ -96,19 +95,13 @@ export default function Home() {
           onResetIdentityClick={onResetIdentityClick}
         />
       </div>
-      <div className="grid grid-rows-3 grid-flow-col gap-1 place-content-center">
+      <div className="grid grid-rows-3 grid-flow-col gap-2 place-content-center">
         <div>
           <WebsocketConnector
             isConnected={isConnected}
+            isReading={isReading}
             connectToWs={connectToWs}
             onDisconnectClick={onDisconnectClick}
-            onResetIdentityClick={onResetIdentityClick}
-          />
-        </div>
-        <div>
-          <TelereadButton
-            isConnected={isConnected}
-            isReading={isReading}
             onReadClick={onReadClick}
           />
         </div>

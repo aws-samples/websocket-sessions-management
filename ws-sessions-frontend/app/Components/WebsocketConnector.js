@@ -5,7 +5,13 @@ import Card from "react-bootstrap/Card";
 import CardGroup from "react-bootstrap/CardGroup";
 
 function WebsocketConnector(props) {
-  const { connectToWs, isConnected, onDisconnectClick } = props;
+  const {
+    connectToWs,
+    isConnected,
+    isReading,
+    onDisconnectClick,
+    onReadClick,
+  } = props;
 
   return (
     <CardGroup className="center-content">
@@ -29,17 +35,36 @@ function WebsocketConnector(props) {
               </p>
             </Form.Text>
           </Form.Group>
-          <Button disabled={isConnected} variant="primary" type="submit">
-            Connect
-          </Button>
-          <Button
-            className="ml-4"
-            onClick={onDisconnectClick}
-            disabled={!isConnected}
-            variant="secondary"
-          >
-            Disconnect
-          </Button>
+          <div className="grid grid-rows-2 gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                className="w-full bg-blue-500"
+                disabled={isConnected}
+                variant="primary"
+                type="submit"
+              >
+                Connect
+              </Button>
+              <Button
+                className="w-full bg-red-500"
+                onClick={onDisconnectClick}
+                disabled={!isConnected}
+                variant="danger"
+              >
+                Disconnect
+              </Button>
+            </div>
+            <div>
+              <Button
+                className="w-full bg-blue-500"
+                onClick={onReadClick}
+                disabled={!isConnected || isReading}
+                variant="primary"
+              >
+                Tele-read
+              </Button>
+            </div>
+          </div>
         </Form>
       </Card>
     </CardGroup>

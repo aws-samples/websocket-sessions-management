@@ -7,11 +7,12 @@ function Telereader(props) {
   const { chars, showCursor, onClearClick } = props;
 
   return (
-    <CardGroup className="min-h-44 -mt-48">
+    <CardGroup className="min-h-44">
       <Card>
         <Card.Body>
           <Card.Title>
             <Button
+              className="bg-gray-500"
               onClick={onClearClick}
               disabled={chars.length < 1}
               variant="secondary"
