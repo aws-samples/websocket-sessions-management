@@ -20,12 +20,12 @@ function Telereader(props) {
               Clear
             </Button>
           </Card.Title>
-          <Card.Text className="max-w-96">
+          <Card.Text className="max-w-96 text-wrap">
             {chars.length > 0 ? (
-              <p className="text-wrap">
+              <>
                 {chars}
                 <span>{showCursor ? "▒" : ""}</span>
-              </p>
+              </>
             ) : (
               "Teletyped text will appear here."
             )}
