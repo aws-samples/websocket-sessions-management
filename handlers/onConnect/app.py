@@ -13,15 +13,15 @@ def handler(event, context):
     connection_id = event['requestContext']['connectionId']
     domain_name = event['requestContext']['domainName']
     stage = event['requestContext']['stage']
-    userId = event['headers']['Sec-WebSocket-Protocol']
+    user_id = event['headers']['Sec-WebSocket-Protocol']
 
     print("==================  userID  ==================")
-    print(userId)
+    print(user_id)
 
     ddb.put_item(
         TableName=table_name,
         Item={
-            'userId': {'S': userId},
+            'userId': {'S': user_id},
             'connectionId': {'S': connection_id},
             'domainName': {'S': domain_name},
             'stage': {'S': stage},
@@ -32,7 +32,7 @@ def handler(event, context):
     return {
         'statusCode': 200,
         'headers': {
-            'Sec-WebSocket-Protocol': userId
+            'Sec-WebSocket-Protocol': user_id
         }
     }
 
@@ -52,11 +52,11 @@ def add_to_connections_table(connection_item):
         Item=connection_item
     )
 
-def update_connection_status(userId, connection_id):
+def update_connection_status(user_id, connection_id):
     ddb.update_item(
         TableName=table_name,
         Key={
-            'userId': {'S': userId},
+            'userId': {'S': user_id},
         },
         UpdateExpression="set active = :r, set connectionId = :c",
         ExpressionAttributeValues={
