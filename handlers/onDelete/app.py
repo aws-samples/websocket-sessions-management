@@ -22,7 +22,7 @@ def handler(event, context):
 
     five_minutes_ago = int((datetime.now() - timedelta(minutes=5)).timestamp())
 
-    stale_connection_items = table_connections.query(
+    response = table_connections.query(
         IndexName='lastSeen-index',
         KeyConditionExpression='active = :hk and lastSeen < :rk',
         ExpressionAttributeValues={
@@ -31,17 +31,16 @@ def handler(event, context):
         }
     )
 
-    inactive_user_count = len(stale_connection_items['Items'])
-    print(f'{inactive_user_count} inactive users will be removed')
-    
-    inactive_users = stale_connection_items['Items']
+    inactive_connections = response['Items']
+    inactive_connection_count = len(inactive_connections)
+    print(f'{inactive_connection_count} inactive connections will be removed')
 
     # remove inactive connections
     with table_connections.batch_writer() as batch:
-        for item in inactive_users:
+        for item in inactive_connections:
             batch.delete_item(Key={'userId': item['userId']})
 
     # remove inactive sessions
     with table_sessions.batch_writer() as batch:
-        for item in inactive_users:
+        for item in inactive_connections:
             batch.delete_item(Key={'userId': item['userId']})

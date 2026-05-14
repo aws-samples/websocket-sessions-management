@@ -4,9 +4,9 @@ import json
 import requests
 import time
 
-api_url = os.environ.get('API_URL')
-connections_table_name = os.environ.get('CONNECTIONS_TABLE_NAME')
-sessions_table_name = os.environ.get('SESSIONS_TABLE_NAME')
+api_url = os.environ['API_URL']
+connections_table_name = os.environ['CONNECTIONS_TABLE_NAME']
+sessions_table_name = os.environ['SESSIONS_TABLE_NAME']
 
 ddb = boto3.client('dynamodb', region_name=os.environ['AWS_REGION'])
 api_client = boto3.client(
@@ -22,14 +22,14 @@ def handler(event, context):
     connection_id = event['requestContext']['connectionId']
 
     user_id = get_user_id(connection_id)
-    startFrom = get_stored_cursor_position(user_id)
+    start_from = get_stored_cursor_position(user_id)
 
-    print(type(startFrom))
-    print(startFrom)
-    
+    print(type(start_from))
+    print(start_from)
+
     text = get_wiki_article()
-    text_to_send = text[startFrom:]
-    pos = startFrom
+    text_to_send = text[start_from:]
+    pos = start_from
     for ch in text_to_send:
         exec_status = send_char_to_client(user_id, connection_id, ch, pos)
         if exec_status:
@@ -48,14 +48,12 @@ def send_char_to_client(user_id, connection_id, ch, pos):
             ConnectionId=connection_id,
             Data=bytes(ch, 'utf-8')
         )
-    except api_client.exceptions.GoneException as e:
-        print(f"Found stale connection, persisting state")
+    except api_client.exceptions.GoneException:
+        print("Found stale connection, persisting state")
         store_cursor_position(user_id, pos)
         return {
             'statusCode': 410
         }
-    except Exception as e:
-        raise e
 
     return None
 
@@ -99,10 +97,10 @@ def get_user_id(connection_id):
         }
     )
 
-    items = response['Items']
+    connections = response['Items']
 
-    if len(items) == 1:
-        return items[0]['userId']['S']
+    if len(connections) == 1:
+        return connections[0]['userId']['S']
 
     return None
 
