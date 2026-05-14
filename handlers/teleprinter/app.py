@@ -118,7 +118,13 @@ def get_wiki_article():
         'titles': 'WebSocket'
     }
 
-    response = requests.get(url, params=params)
+    headers = {
+        'User-Agent': 'ws-sessions-management-demo/1.0 (https://github.com/aws-samples; contact@example.com)',
+        'Accept': 'application/json'
+    }
+
+    response = requests.get(url, params=params, headers=headers, timeout=10)
+    response.raise_for_status()
     data = response.json()
     text = list(data['query']['pages'].values())[0]['extract']
     print(text)

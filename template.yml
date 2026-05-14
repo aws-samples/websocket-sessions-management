@@ -33,7 +33,7 @@ Resources:
   Websocket:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: SessionManagementWebsocketApi
+      Name: !Sub "${AWS::StackName}-websocket"
       ProtocolType: WEBSOCKET
       RouteSelectionExpression: "$request.body.action"
   ConnectRoute:
@@ -165,6 +165,7 @@ Resources:
         Schedule:
           Type: ScheduleV2
           Properties:
+            Name: !Sub "${AWS::StackName}-onDeleteSchedule"
             ScheduleExpression: rate(5 minutes)
 
 ##### Lambda functions #####
@@ -181,11 +182,12 @@ Resources:
           TableName: !Ref ConnectionsTable
   OnConnectPermission:
     Type: AWS::Lambda::Permission
+    DependsOn:
+      - Websocket
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref OnConnectFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
   OnDisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -199,11 +201,12 @@ Resources:
           TableName: !Ref ConnectionsTable
   OnDisconnectPermission:
     Type: AWS::Lambda::Permission
+    DependsOn:
+      - Websocket
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref OnDisconnectFunction
       Principal: apigateway.amazonaws.com
-      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
   
   TeleprinterFunction:
     Type: AWS::Serverless::Function
