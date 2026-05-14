@@ -8,7 +8,14 @@ import WebsocketConnector from "./Components/WebsocketConnector";
 
 export default function Home() {
   const [ws, setWs] = useState();
-  const [userId, setUserId] = useState();
+  const [userId, setUserId] = useState(() => {
+    if (typeof window === "undefined") return undefined;
+    const stored = sessionStorage.getItem("userId");
+    if (stored) return stored;
+    const randomId = uuidv4();
+    sessionStorage.setItem("userId", randomId);
+    return randomId;
+  });
   const [isConnected, setIsConnected] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const [chars, setChars] = useState([]);
@@ -44,17 +51,6 @@ export default function Home() {
       };
     }
   };
-
-  useEffect(() => {
-    const storedUserId = sessionStorage.getItem("userId");
-    if (!storedUserId) {
-      const randomId = uuidv4();
-      sessionStorage.setItem("userId", randomId);
-      setUserId(randomId);
-    } else {
-      setUserId(storedUserId);
-    }
-  }, []);
 
   const onReadClick = useCallback(() => {
     setIsReading(true);

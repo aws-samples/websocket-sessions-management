@@ -60,19 +60,33 @@ AWS provides you with hosted React-based Frontend. Simply open [this link](https
 
 To test Frontend on your local machine, you can deploy the React app locally. To do this, follow these steps:
 
-1. Make sure you have npm installed:
+1. Make sure you have Node.js 20.9+ and npm installed:
     ``` bash
+    node -v
     npm -v
     ```
 1. Navigate to `ws-sessions-frontend` directory:
     ``` bash
     cd ws-sessions-frontend
     ```
-1. Start the Frontend:
+1. Install dependencies:
     ``` bash
-    npm start
+    npm install
     ```
-    The command will open React app in your default browser. If it does not happen automatically, navigate to http://localhost:3000/ manually.
+1. Start the development server:
+    ``` bash
+    npm run dev
+    ```
+    Open http://localhost:3000/ in your browser. The app supports hot reload.
+
+To preview the production static bundle locally:
+
+``` bash
+npm run build       # produces ws-sessions-frontend/out/
+npx serve out       # serves the static bundle on http://localhost:3000
+```
+
+> **Note:** This frontend is configured as a Next.js [static export](https://nextjs.org/docs/app/guides/static-exports) (`output: "export"` in `next.config.mjs`), so `npm start` (which expects a Node runtime server) does not apply. Deploy the contents of `out/` to any static host (S3 + CloudFront, Amplify Hosting, GitHub Pages, etc.).
 
 
 ## How it works
