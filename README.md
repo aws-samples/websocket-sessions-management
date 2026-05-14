@@ -8,6 +8,19 @@ The goal is to demonstrate how to handle reconnects without losing user context.
 
 ![Diagram](readme_assets/diagram.png)
 
+## What changed since the [original blog post](https://aws.amazon.com/blogs/compute/managing-sessions-of-anonymous-users-in-websocket-api-based-applications/)
+
+If you came here from the blog post, the architecture in the diagram (two DynamoDB tables, OnConnect/OnDisconnect/Teleprinter Lambdas, EventBridge-driven OnDelete sweep, cursor-resume on reconnect) is unchanged. The pieces that diverge from the post are mostly about how the user id reaches the backend.
+
+* **Identity no longer travels in `Sec-WebSocket-Protocol`.** The post passes the browser-generated user id through the `Sec-WebSocket-Protocol` header (`new WebSocket(wsUri, userId)`). That works, but it lets any client claim any user id ([issue #13](https://github.com/aws-samples/websocket-sessions-management/issues/13)). The sample now uses a Cognito Identity Pool with unauthenticated identities: the frontend gets short-lived guest IAM credentials, SigV4-signs the `$connect` URL, and the `$connect` route is protected by `AuthorizationType: AWS_IAM`. `OnConnect` reads the user id from `requestContext.identity.cognitoIdentityId`, which AWS vouches for. The anonymous reconnecting user experience is the same; the id just isn't forgeable.
+* **IdentityId lives in `localStorage`, not `sessionStorage`.** Cognito IdentityIds are stable per browser, so persisting across tabs and reloads is the intended behavior. "Reset Identity" clears it and triggers a fresh `GetId` on the next connect.
+* **Stage uses `AutoDeploy: true`.** The post's template uses a static `AWS::ApiGatewayV2::Deployment` snapshot. With AutoDeploy, route changes (such as flipping `$connect` to `AWS_IAM`) take effect on the live stage automatically.
+* **Lambda runtime bumped to `python3.13`.** Python 3.9 is past end-of-support and Lambda blocks new function creates on it.
+* **DynamoDB tables use `PAY_PER_REQUEST`.** The sample is bursty and mostly idle, so on-demand fits better than the provisioned 5/5 in the post.
+* **Frontend dependencies modernized.** Migrated to Next.js 16 with the App Router and shipped as a static export.
+
+The post's "Serving authenticated users" note still applies. To accept signed-in users instead of guests, swap the Identity Pool's unauthenticated role for an authenticated one and feed it tokens from a Cognito User Pool (or any other federated identity provider).
+
 ## Project structure
 
 This project contains Backend, which you can deploy with AWS SAM `template.yml`, located in the root of the repository. `handlers` directory contains all AWS Lambda functions' source code. `ws-sessions-frontend` directory contains React-based Frontend, which is optional for deployment.
@@ -25,7 +38,7 @@ This project contains Backend, which you can deploy with AWS SAM `template.yml`,
 
 ## Deployment instructions
 
-The project contains Backend and Frontend. You can deploy Backend only. The deployment of Frontend is optional. You can use a hosted Frontend for testing application [here-INSERT_THE_LINK]() and refer to the code in `ws-sessions-frontend` to understand how it works under the hood. Alternatively, you can deploy the React-based Frontend locally or to AWS.
+The project contains Backend and Frontend. You can deploy Backend only. The deployment of Frontend is optional. Refer to the code in `ws-sessions-frontend` to understand how it works under the hood, or deploy the React-based Frontend locally or to AWS.
 
 ### Backend
 
@@ -49,14 +62,9 @@ The project contains Backend and Frontend. You can deploy Backend only. The depl
 
     Once you have finished the setup, SAM CLI will save the specified settings in configuration file samconfig.toml so you can use `sam deploy` for quicker deployments.
 1. Note the WebSocketURL value in the output of `sam deploy --guided` command. You will need this value for the Frontend later.
+1. Note the IdentityPoolId value in the same output. The Frontend uses it to obtain anonymous guest IAM credentials and SigV4-sign the WebSocket connect request. The $connect route is configured with `AuthorizationType: AWS_IAM`, so the user id (`requestContext.identity.cognitoIdentityId`) is vouched for by AWS rather than asserted by the client.
 
 ### Frontend
-
-#### Option 1: Use hosted Frontend
-
-AWS provides you with hosted React-based Frontend. Simply open [this link](https://main.d2ygdotzvem6pv.amplifyapp.com/).
-
-#### Option 2: Deploy frontend Frontend locally
 
 To test Frontend on your local machine, you can deploy the React app locally. To do this, follow these steps:
 
@@ -73,6 +81,11 @@ To test Frontend on your local machine, you can deploy the React app locally. To
     ``` bash
     npm install
     ```
+1. Configure the Cognito Identity Pool ID. Create `.env.local` in `ws-sessions-frontend/` with the `IdentityPoolId` value from the SAM outputs:
+    ``` bash
+    NEXT_PUBLIC_IDENTITY_POOL_ID=<region>:<uuid>
+    ```
+    Next.js inlines `NEXT_PUBLIC_*` variables at build time, so this works for both `npm run dev` and the static export.
 1. Start the development server:
     ``` bash
     npm run dev
@@ -93,7 +106,7 @@ npx serve out       # serves the static bundle on http://localhost:3000
 
 ![Frontend](readme_assets/app_demo.gif)
 
-1. Notice that the app has generated a random user ID for you on startup. The app shows the user ID above in the header.
+1. Notice that the app has generated a random user ID for you on startup. The app shows the user ID above in the header. The ID is the Cognito IdentityId for this browser, allocated on first connect from the Identity Pool's unauthenticated identities and cached in `localStorage` so it survives reloads.
 
 1. Paste the WebSocket URL into the text field. You can find the URL in the console output after you have successfully deployed your SAM template. Alternatively, you can navigate to AWS Management Console (make sure you are in the right region), select the API you have recently deployed, go to `Stages`, select the deployed stage and copy the `WebSocket URL` value.
 

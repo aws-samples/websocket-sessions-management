@@ -1,21 +1,12 @@
 import time
 import boto3
-from boto3.dynamodb.conditions import Key
 import os
-import json
 
 ddb = boto3.client('dynamodb')
 table_name = os.environ.get('TABLE_NAME')
 
 def handler(event, context):
-    print("================== context ==================")
-    print(context)
-    print("==================  event  ==================")
-    print(json.dumps(event))
-
     connection_id = event['requestContext']['connectionId']
-    print(connection_id)
-    print(type(connection_id))
     deactivate_user_connection(connection_id)
     return {
         'statusCode': 200
@@ -30,8 +21,6 @@ def deactivate_user_connection(connection_id):
             ':c': {'S': connection_id}
         }
     )
-
-    print(json.dumps(response))
 
     items = response['Items']
     if not items:
