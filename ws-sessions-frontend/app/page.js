@@ -8,14 +8,7 @@ import WebsocketConnector from "./Components/WebsocketConnector";
 
 export default function Home() {
   const [ws, setWs] = useState();
-  const [userId, setUserId] = useState(() => {
-    if (typeof window === "undefined") return undefined;
-    const stored = sessionStorage.getItem("userId");
-    if (stored) return stored;
-    const randomId = uuidv4();
-    sessionStorage.setItem("userId", randomId);
-    return randomId;
-  });
+  const [userId, setUserId] = useState();
   const [isConnected, setIsConnected] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const [chars, setChars] = useState([]);
@@ -51,6 +44,26 @@ export default function Home() {
       };
     }
   };
+
+  // Initialize userId from sessionStorage on the client only. We deliberately
+  // set state inside an effect (instead of useState's lazy initializer) so
+  // that the initial render matches between the build-time static render
+  // (output: "export") and client hydration -- both start with userId ===
+  // undefined. A lazy initializer that reads sessionStorage during render
+  // returns undefined at build time but a UUID on first client render,
+  // causing a hydration mismatch.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    const storedUserId = sessionStorage.getItem("userId");
+    if (!storedUserId) {
+      const randomId = uuidv4();
+      sessionStorage.setItem("userId", randomId);
+      setUserId(randomId);
+    } else {
+      setUserId(storedUserId);
+    }
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const onReadClick = useCallback(() => {
     setIsReading(true);
