@@ -10,9 +10,13 @@ Description: >
   
 Globals:
   Function:
-    Runtime: python3.9
+    Runtime: python3.13
+    Architectures:
+      - arm64
     MemorySize: 128
     Timeout: 15
+    LoggingConfig:
+      LogFormat: JSON
 
 Parameters:
   ApiStageName:
@@ -97,6 +101,7 @@ Resources:
   ConnectionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
       - AttributeName: "userId"
         AttributeType: "S"
@@ -113,41 +118,30 @@ Resources:
       - IndexName: connectionId-index
         Projection:
           ProjectionType: ALL
-        ProvisionedThroughput:
-          WriteCapacityUnits: 5
-          ReadCapacityUnits: 5
         KeySchema:
         - KeyType: HASH
           AttributeName: connectionId
       - IndexName: lastSeen-index
         Projection:
           ProjectionType: KEYS_ONLY
-        ProvisionedThroughput:
-          WriteCapacityUnits: 5
-          ReadCapacityUnits: 5
         KeySchema:
         - KeyType: HASH
           AttributeName: active
         - KeyType: RANGE
           AttributeName: lastSeen
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
       SSESpecification:
         SSEEnabled: True
 
   SessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
+      BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
       - AttributeName: "userId"
         AttributeType: "S"
       KeySchema:
       - AttributeName: "userId"
         KeyType: "HASH"
-      ProvisionedThroughput:
-        ReadCapacityUnits: 5
-        WriteCapacityUnits: 5
       SSESpecification:
         SSEEnabled: True
 
@@ -156,7 +150,6 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: app.handler
-      Runtime: python3.9
       CodeUri: handlers/onDelete/
       MemorySize: 128
       Environment:
@@ -172,7 +165,7 @@ Resources:
         Schedule:
           Type: ScheduleV2
           Properties:
-            ScheduleExpression: rate(5 minute)
+            ScheduleExpression: rate(5 minutes)
 
 ##### Lambda functions #####
   OnConnectFunction:
@@ -188,12 +181,11 @@ Resources:
           TableName: !Ref ConnectionsTable
   OnConnectPermission:
     Type: AWS::Lambda::Permission
-    DependsOn:
-      - Websocket
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref OnConnectFunction
       Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
   OnDisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -207,12 +199,11 @@ Resources:
           TableName: !Ref ConnectionsTable
   OnDisconnectPermission:
     Type: AWS::Lambda::Permission
-    DependsOn:
-      - Websocket
     Properties:
       Action: lambda:InvokeFunction
       FunctionName: !Ref OnDisconnectFunction
       Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/*'
   
   TeleprinterFunction:
     Type: AWS::Serverless::Function
