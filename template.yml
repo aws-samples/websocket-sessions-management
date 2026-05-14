@@ -41,7 +41,7 @@ Resources:
     Properties:
       ApiId: !Ref Websocket
       RouteKey: $connect
-      AuthorizationType: NONE
+      AuthorizationType: AWS_IAM
       OperationName: ConnectRoute
       Target: !Join [ '/', ['integrations', !Ref ConnectInteg] ]
   ConnectInteg:
@@ -81,21 +81,18 @@ Resources:
       Description: Teleprinter Integration
       IntegrationType: AWS_PROXY
       IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${TeleprinterFunction.Arn}/invocations
-  Deployment:
-    Type: AWS::ApiGatewayV2::Deployment
-    DependsOn:
-    - ConnectRoute
-    - DisconnectRoute
-    - TeleprinterRoute
-    Properties:
-      ApiId: !Ref Websocket
+  # AutoDeploy makes the stage redeploy automatically whenever any part of
+  # the API definition (routes, integrations, authorizers) changes. Without
+  # it, a static AWS::ApiGatewayV2::Deployment freezes a snapshot of the
+  # API and route edits like flipping $connect from NONE to AWS_IAM do not
+  # take effect on the live stage until the deployment is recreated.
   Stage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
       StageName: !Ref ApiStageName
       Description: Prod Stage
-      DeploymentId: !Ref Deployment
       ApiId: !Ref Websocket
+      AutoDeploy: true
 
 ##### DynamoDB table for managing Websocket connections #####
   ConnectionsTable:
@@ -144,6 +141,53 @@ Resources:
         KeyType: "HASH"
       SSESpecification:
         SSEEnabled: True
+
+##### Cognito Identity Pool for anonymous (guest) clients #####
+# Browsers can't set arbitrary headers on a native WebSocket.
+# We replace original Sec-WebSocket-Protocol header usage with a Cognito Identity Pool
+# that hands out short-lived guest IAM credentials. The frontend SigV4-signs
+# the $connect URL with those credentials; API Gateway verifies the signature
+# and exposes a stable, server-vouched IdentityId via
+# requestContext.identity.cognitoIdentityId. Anonymous UX is preserved - no
+# sign-in, no email - but the user id is no longer forgeable.
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      IdentityPoolName: !Sub "${AWS::StackName}-guests"
+      AllowUnauthenticatedIdentities: true
+
+  UnauthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Action: sts:AssumeRoleWithWebIdentity
+          Condition:
+            StringEquals:
+              "cognito-identity.amazonaws.com:aud": !Ref IdentityPool
+            "ForAnyValue:StringLike":
+              "cognito-identity.amazonaws.com:amr": unauthenticated
+      Policies:
+      - PolicyName: WebsocketConnect
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          # Scope guest creds to invoking $connect on this WS API only. They
+          # cannot post to connections, manage stages, or hit any other route.
+          - Effect: Allow
+            Action: execute-api:Invoke
+            Resource: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${Websocket}/${ApiStageName}/$connect"
+
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId: !Ref IdentityPool
+      Roles:
+        unauthenticated: !GetAtt UnauthRole.Arn
 
 ##### EventBridge Scheduler #####
   OnDeleteSchedulerFunction:
@@ -242,3 +286,9 @@ Outputs:
   WebSocketURL:
     Description: "The WSS Protocol URL to connect to. Copy and paste to the field on the frontend."
     Value: !Join [ '', [ 'wss://', !Ref Websocket, '.execute-api.',!Ref 'AWS::Region','.amazonaws.com/',!Ref 'ApiStageName'] ]
+  IdentityPoolId:
+    Description: "Cognito Identity Pool ID. The frontend uses this to obtain guest IAM credentials for SigV4-signing the $connect request."
+    Value: !Ref IdentityPool
+  AwsRegion:
+    Description: "AWS region the stack is deployed to. Required by the frontend to talk to Cognito and to SigV4-sign the WS URL."
+    Value: !Ref AWS::Region
