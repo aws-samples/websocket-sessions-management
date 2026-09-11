@@ -14,7 +14,7 @@
     "@smithy/protocol-http": "^5.4.2",
     "@smithy/signature-v4": "^5.4.2",
     "bootstrap": "^5.3.3",
-    "next": "^16.2.6",
+    "next": "^16.3.4",
     "react": "^18",
     "react-bootstrap": "^2.10.2",
     "react-dom": "^18"
