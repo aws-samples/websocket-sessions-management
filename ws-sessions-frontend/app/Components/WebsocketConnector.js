@@ -24,7 +24,7 @@ function WebsocketConnector(props) {
               type="text"
               placeholder="Websocket URL"
             />
-            <Form.Text className="text-xs">
+            <Form.Text className="text-xs leading-4">
               <p className="m-0">Enter your Websocket URL:</p>
               <p className="ml-2 italic">
                 wss://API_ID.execute-api.AWS_Region.amazonaws.com/STAGE_NAME.

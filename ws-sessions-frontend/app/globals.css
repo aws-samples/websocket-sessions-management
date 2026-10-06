@@ -1,9 +1,21 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/*
+  Tailwind v4 puts its styles in cascade layers, and the unlayered Bootstrap
+  stylesheet imported in layout.js wins over them. Where a Tailwind utility
+  and a Bootstrap rule set the same property, Bootstrap applies.
+*/
+
+/*
+  The default border color changed to `currentcolor` in Tailwind v4.
+  Keep the v3 default so borders look the same.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
   }
 }

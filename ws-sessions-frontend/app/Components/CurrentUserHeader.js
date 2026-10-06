@@ -6,7 +6,7 @@ function CurrentUserHeader(props) {
   const { userId, onResetIdentityClick } = props;
 
   return (
-    <Card className="mb-6 bg-gradient-to-r from-slate-300">
+    <Card className="mb-6 bg-linear-to-r from-slate-300">
       <Card.Header>
         <div className="grid grid-cols-2">
           <div>
