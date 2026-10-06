@@ -2,7 +2,7 @@ name: Continuous integration
 
 on:
   push:
-    branches: [ main]
+    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -13,16 +13,34 @@ jobs:
   cfn-nag:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - uses: stelligent/cfn_nag@master
+    - uses: actions/checkout@v7
+    - uses: stelligent/cfn_nag@v0.8.10
       with:
         input_path: template.yml
+
+  frontend:
+    name: Frontend lint and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ws-sessions-frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: ws-sessions-frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
   scan:
     name: npm audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Audit packages
-        run: npm --prefix "ws-sessions-frontend" audit --audit-level moderate --production
+      - uses: actions/checkout@v7
+      - name: Audit runtime packages
+        run: npm --prefix "ws-sessions-frontend" audit --audit-level moderate --omit=dev
         env:
           CI: true

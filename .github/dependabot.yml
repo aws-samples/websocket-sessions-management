@@ -1,0 +1,48 @@
+# Dependabot configuration.
+# Without this file Dependabot opened one security PR per vulnerable
+# transitive package. Grouping folds those into one PR per ecosystem,
+# and a monthly grouped version update keeps the lockfile fresh so fewer
+# alerts fire in the first place.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /ws-sessions-frontend
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      npm-minor-and-patch:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ["*"]
+      npm-major:
+        applies-to: version-updates
+        update-types: [major]
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /handlers/teleprinter
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    groups:
+      pip-security:
+        applies-to: security-updates
+        patterns: ["*"]
+      pip-all:
+        applies-to: version-updates
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]
