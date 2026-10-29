@@ -15,9 +15,9 @@ If you came here from the blog post, the architecture in the diagram (two Dynamo
 * **Identity no longer travels in `Sec-WebSocket-Protocol`.** The post passes the browser-generated user id through the `Sec-WebSocket-Protocol` header (`new WebSocket(wsUri, userId)`). That works, but it lets any client claim any user id ([issue #13](https://github.com/aws-samples/websocket-sessions-management/issues/13)). The sample now uses a Cognito Identity Pool with unauthenticated identities: the frontend gets short-lived guest IAM credentials, SigV4-signs the `$connect` URL, and the `$connect` route is protected by `AuthorizationType: AWS_IAM`. `OnConnect` reads the user id from `requestContext.identity.cognitoIdentityId`, which AWS vouches for. The anonymous reconnecting user experience is the same; the id just isn't forgeable.
 * **IdentityId lives in `localStorage`, not `sessionStorage`.** Cognito IdentityIds are stable per browser, so persisting across tabs and reloads is the intended behavior. "Reset Identity" clears it and triggers a fresh `GetId` on the next connect.
 * **Stage uses `AutoDeploy: true`.** The post's template uses a static `AWS::ApiGatewayV2::Deployment` snapshot. With AutoDeploy, route changes (such as flipping `$connect` to `AWS_IAM`) take effect on the live stage automatically.
-* **Lambda runtime bumped to `python3.13`.** Python 3.9 is past end-of-support and Lambda blocks new function creates on it.
+* **Lambda runtime bumped to `python3.14`.** Python 3.9 is past end-of-support and Lambda blocks new function creates on it.
 * **DynamoDB tables use `PAY_PER_REQUEST`.** The sample is bursty and mostly idle, so on-demand fits better than the provisioned 5/5 in the post.
-* **Frontend dependencies modernized.** Migrated to Next.js 16 with the App Router and shipped as a static export.
+* **Frontend dependencies modernized.** Migrated to Next.js 16 and React 19 with the App Router and shipped as a static export.
 
 The post's "Serving authenticated users" note still applies. To accept signed-in users instead of guests, swap the Identity Pool's unauthenticated role for an authenticated one and feed it tokens from a Cognito User Pool (or any other federated identity provider).
 
@@ -68,7 +68,7 @@ The project contains Backend and Frontend. You can deploy Backend only. The depl
 
 To test Frontend on your local machine, you can deploy the React app locally. To do this, follow these steps:
 
-1. Make sure you have Node.js 20.9+ and npm installed:
+1. Make sure you have Node.js 24 LTS or later and npm installed:
     ``` bash
     node -v
     npm -v

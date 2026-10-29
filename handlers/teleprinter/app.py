@@ -3,6 +3,8 @@ import os
 import json
 import requests
 import time
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 api_url = os.environ['API_URL']
 connections_table_name = os.environ['CONNECTIONS_TABLE_NAME']
@@ -11,6 +13,33 @@ sessions_table_name = os.environ['SESSIONS_TABLE_NAME']
 ddb = boto3.client('dynamodb', region_name=os.environ['AWS_REGION'])
 api_client = boto3.client(
     'apigatewaymanagementapi', endpoint_url=api_url)
+
+WIKI_API_URL = 'https://en.wikipedia.org/w/api.php'
+
+# Wikimedia rate-limits API clients by User-Agent and expects it to name the
+# tool and a way to reach its maintainers
+# (https://foundation.wikimedia.org/wiki/Policy:Wikimedia_Foundation_User-Agent_Policy).
+# Throttled (429) and transient 5xx responses are retried with backoff,
+# honouring Retry-After up to 30 seconds.
+wiki_session = requests.Session()
+wiki_session.headers.update({
+    'User-Agent': (
+        'ws-sessions-management-demo/1.0 '
+        '(https://github.com/aws-samples/websocket-sessions-management) '
+        f'python-requests/{requests.__version__}'
+    ),
+    'Accept': 'application/json',
+})
+wiki_session.mount('https://', HTTPAdapter(max_retries=Retry(
+    total=4,
+    backoff_factor=1,
+    status_forcelist=(429, 500, 502, 503, 504),
+    allowed_methods=frozenset({'GET'}),
+    respect_retry_after_header=True,
+    retry_after_max=30,
+)))
+
+_article_cache = None
 
 
 def handler(event, context):
@@ -106,8 +135,16 @@ def get_user_id(connection_id):
 
 
 def get_wiki_article():
-    url = 'https://en.wikipedia.org/w/api.php'
+    # The article only changes when someone edits it on Wikipedia, so keep it
+    # for the lifetime of the execution environment. This also keeps cursor
+    # positions consistent between a disconnect and the following reconnect.
+    global _article_cache
+    if _article_cache is None:
+        _article_cache = fetch_wiki_article()
+    return _article_cache
 
+
+def fetch_wiki_article():
     params = {
         'action': 'query',
         'format': 'json',
@@ -118,12 +155,7 @@ def get_wiki_article():
         'titles': 'WebSocket'
     }
 
-    headers = {
-        'User-Agent': 'ws-sessions-management-demo/1.0 (https://github.com/aws-samples; contact@example.com)',
-        'Accept': 'application/json'
-    }
-
-    response = requests.get(url, params=params, headers=headers, timeout=10)
+    response = wiki_session.get(WIKI_API_URL, params=params, timeout=10)
     response.raise_for_status()
     data = response.json()
     text = list(data['query']['pages'].values())[0]['extract']
